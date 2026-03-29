@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
-import { FileUp, File as FileIcon, X, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileUp, File as FileIcon, X, Eye } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
+import { SectionButton } from './SectionButton';
 
 interface PDFFile {
   id: string;
   name: string;
   file: File;
   pages: number;
+  previewUrl: string;
 }
 
 export function PdfMerger() {
   const [pdfFiles, setPdfFiles] = useState<PDFFile[]>([]);
   const [isMerging, setIsMerging] = useState(false);
   const [mergedPdfUrl, setMergedPdfUrl] = useState<string | null>(null);
+  const [previewPdf, setPreviewPdf] = useState<string | null>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -33,6 +36,7 @@ export function PdfMerger() {
             name: file.name,
             file: file,
             pages: pageCount,
+            previewUrl: URL.createObjectURL(file),
           });
         } catch (error) {
           console.error('Error loading PDF:', error);
@@ -45,6 +49,10 @@ export function PdfMerger() {
   };
 
   const removePdf = (id: string) => {
+    const fileToRemove = pdfFiles.find((pdf) => pdf.id === id);
+    if (fileToRemove) {
+      URL.revokeObjectURL(fileToRemove.previewUrl);
+    }
     setPdfFiles(pdfFiles.filter((pdf) => pdf.id !== id));
   };
 
@@ -91,9 +99,17 @@ export function PdfMerger() {
     if (mergedPdfUrl) {
       URL.revokeObjectURL(mergedPdfUrl);
     }
+    pdfFiles.forEach((pdf) => URL.revokeObjectURL(pdf.previewUrl));
     setMergedPdfUrl(null);
     setPdfFiles([]);
   };
+
+  useEffect(() => {
+    return () => {
+      pdfFiles.forEach((pdf) => URL.revokeObjectURL(pdf.previewUrl));
+      if (mergedPdfUrl) URL.revokeObjectURL(mergedPdfUrl);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
@@ -147,36 +163,39 @@ export function PdfMerger() {
                         <p className="text-xs text-slate-500">{pdf.pages} pages</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => removePdf(pdf.id)}
-                      className="p-1 hover:bg-red-500/20 rounded-full transition-colors group/remove"
-                    >
-                      <X className="w-4 h-4 text-slate-500 group-hover:text-red-500" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setPreviewPdf(pdf.previewUrl)}
+                        className="p-1 hover:bg-white/10 rounded-full transition-colors group/preview"
+                        title="Preview PDF"
+                      >
+                        <Eye className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />
+                      </button>
+                      <button
+                        onClick={() => removePdf(pdf.id)}
+                        className="p-1 hover:bg-red-500/20 rounded-full transition-colors group/remove"
+                        title="Remove PDF"
+                      >
+                        <X className="w-4 h-4 text-slate-500 group-hover:text-red-500" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
 
             {pdfFiles.length > 0 && (
-              <button
-                onClick={mergePdfs}
-                disabled={isMerging}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold py-3 px-6 rounded-lg transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
-              >
-                {isMerging ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Merging PDFs...
-                  </>
-                ) : (
-                  'Merge PDFs'
-                )}
-              </button>
+              <div className="flex justify-center mt-6">
+                <SectionButton
+                  onClick={mergePdfs}
+                  disabled={isMerging}
+                  text={isMerging ? "Merging..." : "Merge PDFs"}
+                />
+              </div>
             )}
           </>
         ) : (
-          <div className="text-center space-y-4">
+          <div className="text-center space-y-6">
             <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-6">
               <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/20">
                 <FileIcon className="w-8 h-8 text-white" />
@@ -192,22 +211,51 @@ export function PdfMerger() {
               </p>
             </div>
 
-            <button
-              onClick={downloadMergedPdf}
-              className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-3 px-6 rounded-lg transition-all shadow-lg shadow-green-500/20"
-            >
-              Download Merged PDF
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-6 mt-6">
+              <SectionButton
+                onClick={downloadMergedPdf}
+                text="Download PDF"
+              />
 
-            <button
-              onClick={resetApp}
-              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-3 px-6 rounded-lg transition-colors border border-slate-700"
-            >
-              Merge Another Document
-            </button>
+              <SectionButton
+                onClick={resetApp}
+                text="Merge Again"
+              />
+            </div>
           </div>
         )}
       </div>
+
+      {previewPdf && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col h-[85vh]">
+            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+              <h3 className="text-lg font-semibold text-slate-100">PDF Preview</h3>
+              <button
+                onClick={() => setPreviewPdf(null)}
+                className="p-2 hover:bg-slate-800 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-400 hover:text-white" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden p-4">
+              <iframe
+                src={previewPdf}
+                className="w-full h-full rounded-lg bg-white"
+                title="PDF Preview"
+              />
+            </div>
+            <div className="p-4 border-t border-slate-800 flex justify-end">
+              <button
+                onClick={() => setPreviewPdf(null)}
+                className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-lg transition-colors font-medium border border-slate-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
