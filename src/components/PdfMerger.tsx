@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileUp, File as FileIcon, X, Eye } from 'lucide-react';
+import { FileUp, File as FileIcon, X, Loader2, Eye } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import { SectionButton } from './SectionButton';
 
@@ -62,6 +62,9 @@ export function PdfMerger() {
     setIsMerging(true);
 
     try {
+      // Add 5-second loading animation delay
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
       const mergedPdf = await PDFDocument.create();
 
       for (const pdfFile of pdfFiles) {
@@ -124,7 +127,7 @@ export function PdfMerger() {
             <div className="mb-6">
               <label
                 htmlFor="pdf-upload"
-                className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer bg-slate-800/30 hover:bg-black hover:border-slate-500 transition-all group"
+                className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer bg-slate-800/30 hover:bg-[#1a1a1a] hover:border-[#A3A3A3]/50 transition-all duration-300 group"
               >
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   <FileUp className="w-10 h-10 text-white mb-3 group-hover:scale-110 transition-transform" />
@@ -228,7 +231,7 @@ export function PdfMerger() {
 
       {previewPdf && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col h-[85vh]">
+          <div className="w-full max-w-2xl bg-black border border-slate-800 rounded-2xl shadow-2xl flex flex-col h-[85vh]">
             <div className="flex items-center justify-between p-4 border-b border-slate-800">
               <h3 className="text-lg font-semibold text-slate-100">PDF Preview</h3>
               <button
@@ -246,13 +249,21 @@ export function PdfMerger() {
               />
             </div>
             <div className="p-4 border-t border-slate-800 flex justify-end">
-              <button
+              <SectionButton
                 onClick={() => setPreviewPdf(null)}
-                className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-lg transition-colors font-medium border border-slate-700"
-              >
-                Close
-              </button>
+                text="Close"
+                className="px-4 py-2 text-sm"
+              />
             </div>
+          </div>
+        </div>
+      )}
+
+      {isMerging && (
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/40 backdrop-blur-md">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+            <p className="text-slate-100 text-lg font-medium animate-pulse">Merging PDFs...</p>
           </div>
         </div>
       )}
